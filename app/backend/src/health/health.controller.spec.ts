@@ -20,6 +20,7 @@ describe('HealthController', () => {
   });
 
   it('GET /health returns service metadata', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const res = await request(app.getHttpServer()).get('/health').expect(200);
 
     expect(res.body).toEqual(

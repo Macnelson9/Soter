@@ -62,7 +62,8 @@ export class VerificationController {
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({
     summary: 'Get verification status',
-    description: 'Retrieve the current status and details of a verification request',
+    description:
+      'Retrieve the current status and details of a verification request',
   })
   @ApiParam({
     name: 'id',

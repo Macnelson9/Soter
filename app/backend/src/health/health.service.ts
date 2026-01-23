@@ -12,7 +12,7 @@ export class HealthService {
       status: 'ok',
       service: 'backend',
       version,
-      environment: this.configService.get('NODE_ENV') ?? 'development',
+      environment: this.configService.get<string>('NODE_ENV') ?? 'development',
       timestamp: new Date().toISOString(),
     };
   }

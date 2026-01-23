@@ -3,7 +3,7 @@ import { CreateVerificationDto } from './dto/create-verification.dto';
 
 @Injectable()
 export class VerificationService {
-  create(createVerificationDto: CreateVerificationDto) {
+  create(_createVerificationDto: CreateVerificationDto) {
     return 'This action adds a new verification';
   }
 
@@ -19,7 +19,7 @@ export class VerificationService {
     return `This action returns verification for user #${userId}`;
   }
 
-  update(id: string, updateVerificationDto: any) {
+  update(id: string, _updateVerificationDto: any) {
     return `This action updates a #${id} verification`;
   }
 

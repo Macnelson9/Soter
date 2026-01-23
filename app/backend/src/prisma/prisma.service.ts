@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 
 @Injectable()
@@ -10,7 +15,8 @@ export class PrismaService
   private connected = false;
 
   async onModuleInit() {
-    const isTest = process.env.NODE_ENV === 'test' || !!process.env.JEST_WORKER_ID;
+    const isTest =
+      process.env.NODE_ENV === 'test' || !!process.env.JEST_WORKER_ID;
     const hasDatabaseUrl = !!process.env.DATABASE_URL;
 
     if (isTest && !hasDatabaseUrl) {
