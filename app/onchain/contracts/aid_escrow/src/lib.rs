@@ -1,7 +1,7 @@
 #![no_std]
 
 use soroban_sdk::{
-    Address, Env, Map, Symbol, String, contract, contracterror, contractimpl, contracttype,
+    Address, Env, Map, String, Symbol, contract, contracterror, contractimpl, contracttype,
 };
 
 #[contract]
@@ -169,7 +169,7 @@ impl AidEscrow {
 #[cfg(test)]
 mod test {
     use super::*;
-    use soroban_sdk::{Address, Env, testutils::{Address as _}};
+    use soroban_sdk::{Address, Env, testutils::Address as _};
 
     fn setup() -> (Env, AidEscrowClient<'static>) {
         let env = Env::default();
@@ -201,8 +201,7 @@ mod test {
         // Admin must authorize
         env.mock_all_auths();
 
-        let package_id = client
-            .create_package(&recipient, &1000, &token, &86400);
+        let package_id = client.create_package(&recipient, &1000, &token, &86400);
         assert_eq!(package_id, 0);
 
         let package = client.get_package(&package_id).unwrap();
@@ -241,8 +240,7 @@ mod test {
         client.initialize(&admin);
         env.mock_all_auths();
 
-        let package_id = client
-            .create_package(&recipient, &1000, &token, &86400);
+        let package_id = client.create_package(&recipient, &1000, &token, &86400);
 
         // Mock recipient auth for claim
         env.mock_all_auths();
@@ -264,8 +262,7 @@ mod test {
         client.initialize(&admin);
         env.mock_all_auths();
 
-        let package_id = client
-            .create_package(&recipient, &1000, &token, &86400);
+        let package_id = client.create_package(&recipient, &1000, &token, &86400);
 
         // Mock wrong auth (other instead of recipient)
         env.mock_all_auths();
@@ -288,12 +285,10 @@ mod test {
 
         assert_eq!(client.get_package_count(), 0);
 
-        client
-            .create_package(&recipient1, &1000, &token, &86400);
+        client.create_package(&recipient1, &1000, &token, &86400);
         assert_eq!(client.get_package_count(), 1);
 
-        client
-            .create_package(&recipient2, &2000, &token, &86400);
+        client.create_package(&recipient2, &2000, &token, &86400);
         assert_eq!(client.get_package_count(), 2);
     }
 

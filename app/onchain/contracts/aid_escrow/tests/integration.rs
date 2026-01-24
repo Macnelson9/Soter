@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use aid_escrow::{AidEscrow, AidEscrowClient, Error, PackageStatus};
-use soroban_sdk::{Address, Env, testutils::{Address as _}};
+use soroban_sdk::{Address, Env, testutils::Address as _};
 
 #[test]
 fn test_integration_flow() {
@@ -21,8 +21,7 @@ fn test_integration_flow() {
 
     // 2. Create package (admin auth required)
     env.mock_all_auths();
-    let package_id = client
-        .create_package(&recipient, &1000, &token, &86400);
+    let package_id = client.create_package(&recipient, &1000, &token, &86400);
     assert_eq!(package_id, 0);
 
     // 3. Verify package details
@@ -60,10 +59,8 @@ fn test_multiple_packages() {
     env.mock_all_auths();
 
     // Create multiple packages
-    let id1 = client
-        .create_package(&recipient1, &500, &token, &3600);
-    let id2 = client
-        .create_package(&recipient2, &1000, &token, &7200);
+    let id1 = client.create_package(&recipient1, &500, &token, &3600);
+    let id2 = client.create_package(&recipient2, &1000, &token, &7200);
 
     assert_eq!(id1, 0);
     assert_eq!(id2, 1);
@@ -103,8 +100,7 @@ fn test_error_cases() {
     );
 
     // Create valid package first
-    let package_id = client
-        .create_package(&recipient, &1000, &token, &86400);
+    let package_id = client.create_package(&recipient, &1000, &token, &86400);
 
     // Try to claim non-existent package
     let result = client.try_claim_package(&999);
