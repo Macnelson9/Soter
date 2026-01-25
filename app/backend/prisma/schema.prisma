@@ -22,3 +22,17 @@ model VerificationRequest {
 
   status    String   @default("pending")
 }
+
+model Claim {
+  id                 String   @id @default(cuid())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  status             String   @default("pending")
+  verificationScore  Float?
+  verificationResult Json?
+  verifiedAt         DateTime?
+  
+  description        String?
+  metadata           Json?
+}

@@ -28,12 +28,14 @@
     "prepare": "cd ../.. && husky app/backend/.husky"
   },
   "dependencies": {
+    "@nestjs/bullmq": "^11.0.4",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.2.5",
     "@prisma/client": "^6.19.2",
+    "bullmq": "^5.67.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
     "dotenv": "^17.2.3",
@@ -60,6 +62,7 @@
     "eslint-plugin-prettier": "^5.5.5",
     "globals": "^16.0.0",
     "husky": "^9.1.7",
+    "ioredis-mock": "^8.13.1",
     "jest": "^30.0.0",
     "lint-staged": "^16.2.7",
     "prettier": "^3.4.2",

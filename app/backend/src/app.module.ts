@@ -1,5 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { BullModule } from '@nestjs/bullmq';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AidModule } from './aid/aid.module';
@@ -25,6 +26,16 @@ import { join } from 'node:path';
         const existing = candidates.filter(p => existsSync(p));
         return existing.length > 0 ? existing : candidates;
       })(),
+    }),
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        connection: {
+          host: configService.get<string>('REDIS_HOST') || 'localhost',
+          port: parseInt(configService.get<string>('REDIS_PORT') || '6379'),
+        },
+      }),
+      inject: [ConfigService],
     }),
     LoggerModule,
     PrismaModule,
