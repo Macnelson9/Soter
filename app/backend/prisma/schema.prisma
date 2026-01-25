@@ -7,6 +7,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum CampaignStatus {
+  draft
+  active
+  paused
+  completed
+  archived
+}
+
 model AidPackage {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -21,4 +29,24 @@ model VerificationRequest {
   updatedAt DateTime @updatedAt
 
   status    String   @default("pending")
+}
+
+model Campaign {
+  id          String          @id @default(cuid())
+
+  name        String
+
+  status      CampaignStatus @default(draft)
+
+  budget      Decimal        @db.Decimal(14, 2)
+
+  metadata    Json?
+
+  archivedAt  DateTime?
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([status])
+  @@index([archivedAt])
 }

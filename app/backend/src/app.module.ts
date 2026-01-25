@@ -10,6 +10,7 @@ import { LoggerModule } from './logger/logger.module';
 import { RequestCorrelationMiddleware } from './middleware/request-correlation.middleware';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { CampaignsModule } from './campaigns/campaigns.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { join } from 'node:path';
     HealthModule,
     AidModule,
     VerificationModule,
+    CampaignsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

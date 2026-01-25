@@ -61,6 +61,7 @@
     "globals": "^16.0.0",
     "husky": "^9.1.7",
     "jest": "^30.0.0",
+    "jest-mock-extended": "^4.0.0",
     "lint-staged": "^16.2.7",
     "prettier": "^3.4.2",
     "prisma": "^6.19.2",
@@ -79,7 +80,7 @@
       "json",
       "ts"
     ],
-    "rootDir": "src",
+    "rootDir": ".",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
@@ -88,7 +89,10 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/src/$1"
+    }
   },
   "lint-staged": {
     "*.ts": [
