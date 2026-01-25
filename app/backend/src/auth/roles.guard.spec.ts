@@ -21,14 +21,19 @@ describe('RolesGuard', () => {
   });
 
   it('denies access if role header missing', () => {
-    const context = {
-      getHandler: () => jest.fn(),
-      getClass: () => jest.fn(),
-      switchToHttp: () => ({ getRequest: () => ({ headers: {} }) }),
-    } as unknown as ExecutionContext;
+  jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['admin']);
 
-    expect(() => guard.canActivate(context)).toThrow('Access denied');
-  });
+  const context = {
+    getHandler: () => jest.fn(),
+    getClass: () => jest.fn(),
+    switchToHttp: () => ({
+      getRequest: () => ({ headers: {} }),
+    }),
+  } as unknown as ExecutionContext;
+
+  expect(() => guard.canActivate(context)).toThrow('Access denied');
+});
+
 
   it('allows access for valid role', () => {
     const context = {
