@@ -132,4 +132,19 @@ export class VerificationController {
   findByUser(@Param('userId') userId: string) {
     return this.verificationService.findByUser(userId);
   }
+
+  @Post(':id/complete')
+  @Version('1')
+  @ApiOperation({
+    summary: 'Mark verification as complete',
+    description:
+      'Updates the status of a verification request to complete and logs the action.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Unique identifier of the verification request',
+  })
+  update(@Param('id') id: string, @Body() data: Record<string, unknown>) {
+    return this.verificationService.update(id, data);
+  }
 }

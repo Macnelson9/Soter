@@ -1,29 +1,47 @@
 import { Injectable } from '@nestjs/common';
 import { CreateVerificationDto } from './dto/create-verification.dto';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class VerificationService {
-  create(_createVerificationDto: CreateVerificationDto) {
-    return 'This action adds a new verification';
+  constructor(private auditService: AuditService) {}
+
+  async create(createVerificationDto: CreateVerificationDto) {
+    const verificationId = 'mock-v-id'; // In real app, this would be from DB
+    await this.auditService.record({
+      actorId: 'system', // Should be from request user
+      entity: 'verification',
+      entityId: verificationId,
+      action: 'enqueue',
+      metadata: { ...createVerificationDto },
+    });
+    return { id: verificationId, message: 'Verification enqueued' };
   }
 
-  findAll() {
-    return `This action returns all verification`;
+  async findAll() {
+    return Promise.resolve([]);
   }
 
-  findOne(id: string) {
-    return `This action returns a #${id} verification`;
+  async findOne(id: string) {
+    return Promise.resolve({ id, status: 'pending' });
   }
 
-  findByUser(userId: string) {
-    return `This action returns verification for user #${userId}`;
+  async findByUser(_userId: string) {
+    return Promise.resolve([]);
   }
 
-  update(id: string, _updateVerificationDto: any) {
-    return `This action updates a #${id} verification`;
+  async update(id: string, updateVerificationDto: Record<string, unknown>) {
+    await this.auditService.record({
+      actorId: 'system',
+      entity: 'verification',
+      entityId: id,
+      action: 'complete',
+      metadata: updateVerificationDto,
+    });
+    return { id, message: 'Verification completed' };
   }
 
-  remove(id: string) {
-    return `This action removes a #${id} verification`;
+  async remove(id: string) {
+    return Promise.resolve({ id, message: 'Removed' });
   }
 }

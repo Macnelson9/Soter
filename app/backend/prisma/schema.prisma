@@ -22,3 +22,16 @@ model VerificationRequest {
 
   status    String   @default("pending")
 }
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  entity    String
+  entityId  String
+  action    String
+  timestamp DateTime @default(now())
+  metadata  Json?
+
+  @@index([entity, entityId])
+  @@index([timestamp])
+}
