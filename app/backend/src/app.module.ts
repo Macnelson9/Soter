@@ -1,6 +1,9 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AidModule } from './aid/aid.module';
@@ -11,9 +14,10 @@ import { TestErrorModule } from './test-error/test-error.module';
 import { LoggerModule } from './logger/logger.module';
 import { AuditModule } from './audit/audit.module';
 import { RequestCorrelationMiddleware } from './middleware/request-correlation.middleware';
-import { SecurityModule } from './common/security/security.module';
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import {
+  SecurityModule,
+  createRateLimiter,
+} from './common/security/security.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { ClaimsModule } from './claims/claims.module';
@@ -33,6 +37,7 @@ import { ClaimsModule } from './claims/claims.module';
         return existing.length > 0 ? existing : candidates;
       })(),
     }),
+
     BullModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -43,6 +48,7 @@ import { ClaimsModule } from './claims/claims.module';
       }),
       inject: [ConfigService],
     }),
+
     LoggerModule,
     PrismaModule,
     HealthModule,
@@ -55,11 +61,18 @@ import { ClaimsModule } from './claims/claims.module';
     ObservabilityModule,
     ClaimsModule,
   ],
+
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule implements NestModule {
+  constructor(private readonly configService: ConfigService) {}
+
   configure(consumer: MiddlewareConsumer) {
+    // Request correlation middleware
     consumer.apply(RequestCorrelationMiddleware).forRoutes('*');
+
+    // Rate limiter middleware (ES import version - ESLint safe)
+    consumer.apply(createRateLimiter(this.configService)).forRoutes('*');
   }
 }

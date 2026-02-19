@@ -188,6 +188,26 @@ export const createRateLimiter = (config: ConfigService): RequestHandler => {
       return;
     }
 
+    // Apply rate limiting for verification endpoints always,
+    // otherwise only apply to unauthenticated requests (no Authorization header)
+    const path = req.path ?? req.originalUrl ?? req.url ?? '';
+    const normalizedPath = path.split('?')[0];
+    const isVerificationPath = /^\/(api\/)?(v\d+\/)?verification(\/|$)/i.test(
+      normalizedPath,
+    );
+
+    const hasAuthHeader = !!(
+      (req.headers &&
+        (req.headers.authorization || req.headers.Authorization)) ||
+      (req as any).user
+    );
+
+    if (!isVerificationPath && hasAuthHeader) {
+      // Authenticated non-verification requests are not rate-limited here
+      next();
+      return;
+    }
+
     const now = Date.now();
     cleanupExpiredEntries(now);
 
