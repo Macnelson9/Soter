@@ -17,6 +17,13 @@ const config = getDefaultConfig(projectRoot);
 // 1. Watch all files within the monorepo
 config.watchFolders = [workspaceRoot];
 
+// 1.5 Add blockList to exclude large irrelevant directories from the watcher
+config.resolver.blockList = [
+  /.*\/app\/backend\/.*/,
+  /.*\/app\/frontend\/.*/,
+  /.*\.git\/.*/,
+];
+
 // 2. Let Metro know where to resolve packages and in what order
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),
@@ -24,6 +31,6 @@ config.resolver.nodeModulesPaths = [
 ];
 
 // 3. Force Metro to resolve (sub)dependencies only from nodeModulesPaths
-config.resolver.disableHierarchicalLookup = true;
+config.resolver.disableHierarchicalLookup = false;
 
 module.exports = config;

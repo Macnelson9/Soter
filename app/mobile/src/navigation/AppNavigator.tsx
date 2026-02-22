@@ -9,14 +9,14 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export const AppNavigator = () => {
   return (
     <Stack.Navigator initialRouteName="Home">
-      <Stack.Screen 
-        name="Home" 
-        component={HomeScreen} 
-        options={{ title: 'Soter Home' }}
+      <Stack.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{ headerShown: false }}
       />
-      <Stack.Screen 
-        name="Health" 
-        component={HealthScreen} 
+      <Stack.Screen
+        name="Health"
+        component={HealthScreen}
         options={{ title: 'System Health' }}
       />
     </Stack.Navigator>
