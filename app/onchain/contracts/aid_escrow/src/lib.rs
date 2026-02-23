@@ -1,13 +1,14 @@
 #![no_std]
 
 use soroban_sdk::{
-    Address, Env, Map, String, Symbol, contract, contracterror, contractevent, contractimpl,
+    Address, Env, Map, String, Symbol, Vec, contract, contracterror, contractevent, contractimpl,
     contracttype, symbol_short, token,
 };
 
 // --- Storage Keys ---
 const KEY_ADMIN: Symbol = symbol_short!("admin");
 const KEY_TOTAL_LOCKED: Symbol = symbol_short!("locked"); // Map<Address, i128>
+const KEY_CONFIG: Symbol = symbol_short!("config");
 
 // --- Data Types ---
 
@@ -33,6 +34,14 @@ pub struct Package {
     pub created_at: u64,
     pub expires_at: u64,
     pub metadata: Map<Symbol, String>,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct Config {
+    pub min_amount: i128,
+    pub max_expires_in: u64,
+    pub allowed_tokens: Vec<Address>,
 }
 
 #[contracterror]
@@ -116,6 +125,12 @@ impl AidEscrow {
             return Err(Error::AlreadyInitialized);
         }
         env.storage().instance().set(&KEY_ADMIN, &admin);
+        let config = Config {
+            min_amount: 1,
+            max_expires_in: 0,
+            allowed_tokens: Vec::new(&env),
+        };
+        env.storage().instance().set(&KEY_CONFIG, &config);
         Ok(())
     }
 
@@ -124,6 +139,26 @@ impl AidEscrow {
             .instance()
             .get(&KEY_ADMIN)
             .ok_or(Error::NotInitialized)
+    }
+
+    pub fn set_config(env: Env, config: Config) -> Result<(), Error> {
+        let admin = Self::get_admin(env.clone())?;
+        admin.require_auth();
+
+        if config.min_amount <= 0 {
+            return Err(Error::InvalidAmount);
+        }
+
+        env.storage().instance().set(&KEY_CONFIG, &config);
+        Ok(())
+    }
+
+    pub fn get_config(env: Env) -> Config {
+        env.storage().instance().get(&KEY_CONFIG).unwrap_or(Config {
+            min_amount: 1,
+            max_expires_in: 0,
+            allowed_tokens: Vec::new(&env),
+        })
     }
 
     // --- Funding & Packages ---
@@ -164,9 +199,21 @@ impl AidEscrow {
     ) -> Result<u64, Error> {
         let admin = Self::get_admin(env.clone())?;
         admin.require_auth();
+        let config = Self::get_config(env.clone());
 
-        if amount <= 0 {
+        if amount < config.min_amount {
             return Err(Error::InvalidAmount);
+        }
+
+        if !config.allowed_tokens.is_empty() && !config.allowed_tokens.contains(token.clone()) {
+            return Err(Error::InvalidState);
+        }
+
+        if config.max_expires_in > 0 {
+            let now = env.ledger().timestamp();
+            if expires_at == 0 || expires_at <= now || expires_at - now > config.max_expires_in {
+                return Err(Error::InvalidState);
+            }
         }
 
         // 1. Check ID Uniqueness
@@ -451,6 +498,7 @@ impl AidEscrow {
         // 1. Only the admin can extend (check stored admin and require_auth)
         let admin = Self::get_admin(env.clone())?;
         admin.require_auth();
+        let config = Self::get_config(env.clone());
 
         // 2. Package must exist
         let key = (symbol_short!("pkg"), package_id);
@@ -483,6 +531,12 @@ impl AidEscrow {
         // 7. Calculate new expiration and update
         let old_expires_at = package.expires_at;
         let new_expires_at = old_expires_at + additional_time;
+        if config.max_expires_in > 0 {
+            let now = env.ledger().timestamp();
+            if new_expires_at <= now || new_expires_at - now > config.max_expires_in {
+                return Err(Error::InvalidState);
+            }
+        }
         package.expires_at = new_expires_at;
         env.storage().persistent().set(&key, &package);
 

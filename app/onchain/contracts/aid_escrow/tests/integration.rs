@@ -1,8 +1,8 @@
 #![cfg(test)]
 
-use aid_escrow::{AidEscrow, AidEscrowClient, Error, PackageStatus};
+use aid_escrow::{AidEscrow, AidEscrowClient, Config, Error, PackageStatus};
 use soroban_sdk::{
-    Address, Env,
+    Address, Env, Vec,
     testutils::{Address as _, Ledger},
     token::{StellarAssetClient, TokenClient},
 };
@@ -152,6 +152,127 @@ fn test_error_cases() {
     let result = client.try_get_package(&999);
     assert_eq!(result, Err(Ok(Error::PackageNotFound)));
 }
+
+#[test]
+fn test_set_get_config() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let allowed_token_admin = Address::generate(&env);
+    let (allowed_token_client, _) = setup_token(&env, &allowed_token_admin);
+
+    let contract_id = env.register(AidEscrow, ());
+    let client = AidEscrowClient::new(&env, &contract_id);
+    client.init(&admin);
+
+    let mut allowed_tokens = Vec::new(&env);
+    allowed_tokens.push_back(allowed_token_client.address.clone());
+
+    let config = Config {
+        min_amount: 50,
+        max_expires_in: 3600,
+        allowed_tokens,
+    };
+    client.set_config(&config);
+
+    let stored = client.get_config();
+    assert_eq!(stored, config);
+}
+
+#[test]
+fn test_config_constraints_on_create_package() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let recipient = Address::generate(&env);
+    let allowed_token_admin = Address::generate(&env);
+    let blocked_token_admin = Address::generate(&env);
+    let (allowed_token_client, allowed_token_admin_client) =
+        setup_token(&env, &allowed_token_admin);
+    let (blocked_token_client, _) = setup_token(&env, &blocked_token_admin);
+
+    let contract_id = env.register(AidEscrow, ());
+    let client = AidEscrowClient::new(&env, &contract_id);
+    client.init(&admin);
+
+    allowed_token_admin_client.mint(&admin, &10_000);
+    client.fund(&allowed_token_client.address, &admin, &5000);
+
+    let mut allowed_tokens = Vec::new(&env);
+    allowed_tokens.push_back(allowed_token_client.address.clone());
+    client.set_config(&Config {
+        min_amount: 100,
+        max_expires_in: 1000,
+        allowed_tokens,
+    });
+
+    let now = env.ledger().timestamp();
+    let too_small = client.try_create_package(
+        &1,
+        &recipient,
+        &99,
+        &allowed_token_client.address,
+        &(now + 10),
+    );
+    assert_eq!(too_small, Err(Ok(Error::InvalidAmount)));
+
+    let blocked_token = client.try_create_package(
+        &2,
+        &recipient,
+        &200,
+        &blocked_token_client.address,
+        &(now + 10),
+    );
+    assert_eq!(blocked_token, Err(Ok(Error::InvalidState)));
+
+    let too_far = client.try_create_package(
+        &3,
+        &recipient,
+        &200,
+        &allowed_token_client.address,
+        &(now + 2000),
+    );
+    assert_eq!(too_far, Err(Ok(Error::InvalidState)));
+}
+
+#[test]
+fn test_config_constraints_on_extend_expiration() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let recipient = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+    let (token_client, token_admin_client) = setup_token(&env, &token_admin);
+
+    let contract_id = env.register(AidEscrow, ());
+    let client = AidEscrowClient::new(&env, &contract_id);
+    client.init(&admin);
+    token_admin_client.mint(&admin, &10_000);
+    client.fund(&token_client.address, &admin, &5000);
+
+    client.set_config(&Config {
+        min_amount: 1,
+        max_expires_in: 1000,
+        allowed_tokens: Vec::new(&env),
+    });
+
+    let now = env.ledger().timestamp();
+    let pkg_id = 1;
+    client.create_package(
+        &pkg_id,
+        &recipient,
+        &1000,
+        &token_client.address,
+        &(now + 500),
+    );
+
+    let result = client.try_extend_expiration(&pkg_id, &700);
+    assert_eq!(result, Err(Ok(Error::InvalidState)));
+}
+
 #[test]
 fn test_extend_expiration_success() {
     let env = Env::default();
