@@ -154,14 +154,11 @@ impl AidEscrow {
     }
 
     pub fn get_config(env: Env) -> Config {
-        env.storage()
-            .instance()
-            .get(&KEY_CONFIG)
-            .unwrap_or(Config {
-                min_amount: 1,
-                max_expires_in: 0,
-                allowed_tokens: Vec::new(&env),
-            })
+        env.storage().instance().get(&KEY_CONFIG).unwrap_or(Config {
+            min_amount: 1,
+            max_expires_in: 0,
+            allowed_tokens: Vec::new(&env),
+        })
     }
 
     // --- Funding & Packages ---

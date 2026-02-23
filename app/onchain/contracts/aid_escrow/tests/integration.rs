@@ -189,7 +189,8 @@ fn test_config_constraints_on_create_package() {
     let recipient = Address::generate(&env);
     let allowed_token_admin = Address::generate(&env);
     let blocked_token_admin = Address::generate(&env);
-    let (allowed_token_client, allowed_token_admin_client) = setup_token(&env, &allowed_token_admin);
+    let (allowed_token_client, allowed_token_admin_client) =
+        setup_token(&env, &allowed_token_admin);
     let (blocked_token_client, _) = setup_token(&env, &blocked_token_admin);
 
     let contract_id = env.register(AidEscrow, ());
@@ -208,14 +209,31 @@ fn test_config_constraints_on_create_package() {
     });
 
     let now = env.ledger().timestamp();
-    let too_small = client.try_create_package(&1, &recipient, &99, &allowed_token_client.address, &(now + 10));
+    let too_small = client.try_create_package(
+        &1,
+        &recipient,
+        &99,
+        &allowed_token_client.address,
+        &(now + 10),
+    );
     assert_eq!(too_small, Err(Ok(Error::InvalidAmount)));
 
-    let blocked_token =
-        client.try_create_package(&2, &recipient, &200, &blocked_token_client.address, &(now + 10));
+    let blocked_token = client.try_create_package(
+        &2,
+        &recipient,
+        &200,
+        &blocked_token_client.address,
+        &(now + 10),
+    );
     assert_eq!(blocked_token, Err(Ok(Error::InvalidState)));
 
-    let too_far = client.try_create_package(&3, &recipient, &200, &allowed_token_client.address, &(now + 2000));
+    let too_far = client.try_create_package(
+        &3,
+        &recipient,
+        &200,
+        &allowed_token_client.address,
+        &(now + 2000),
+    );
     assert_eq!(too_far, Err(Ok(Error::InvalidState)));
 }
 
@@ -243,7 +261,13 @@ fn test_config_constraints_on_extend_expiration() {
 
     let now = env.ledger().timestamp();
     let pkg_id = 1;
-    client.create_package(&pkg_id, &recipient, &1000, &token_client.address, &(now + 500));
+    client.create_package(
+        &pkg_id,
+        &recipient,
+        &1000,
+        &token_client.address,
+        &(now + 500),
+    );
 
     let result = client.try_extend_expiration(&pkg_id, &700);
     assert_eq!(result, Err(Ok(Error::InvalidState)));
