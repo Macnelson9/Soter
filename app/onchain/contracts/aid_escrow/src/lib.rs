@@ -1,13 +1,14 @@
 #![no_std]
 
 use soroban_sdk::{
-    Address, Env, Map, String, Symbol, contract, contracterror, contractevent, contractimpl,
+    Address, Env, Map, String, Symbol, Vec, contract, contracterror, contractevent, contractimpl,
     contracttype, symbol_short, token,
 };
 
 // --- Storage Keys ---
 const KEY_ADMIN: Symbol = symbol_short!("admin");
 const KEY_TOTAL_LOCKED: Symbol = symbol_short!("locked"); // Map<Address, i128>
+const KEY_PKG_COUNTER: Symbol = symbol_short!("pkg_cnt"); // Auto-incrementing package counter
 
 // --- Data Types ---
 
@@ -48,7 +49,8 @@ pub enum Error {
     PackageNotExpired = 8,
     InsufficientFunds = 9, // Contract balance < Total Locked + New Amount
     PackageIdExists = 10,
-    InvalidState = 11, // Transition not allowed
+    InvalidState = 11,     // Transition not allowed
+    MismatchedArrays = 12, // recipients and amounts have different lengths
 }
 
 // --- Contract Events ---
@@ -94,6 +96,13 @@ pub struct RefundedEvent {
     pub id: u64,
     pub admin: Address,
     pub amount: i128,
+}
+
+#[contractevent]
+pub struct BatchCreatedEvent {
+    pub ids: Vec<u64>,
+    pub admin: Address,
+    pub total_amount: i128,
 }
 
 #[contractevent]
@@ -219,6 +228,107 @@ impl AidEscrow {
         .publish(&env);
 
         Ok(id)
+    }
+
+    /// Creates multiple packages in a single transaction for multiple recipients.
+    /// Uses an auto-incrementing counter for package IDs.
+    pub fn batch_create_packages(
+        env: Env,
+        recipients: Vec<Address>,
+        amounts: Vec<i128>,
+        token: Address,
+        expires_in: u64,
+    ) -> Result<Vec<u64>, Error> {
+        let admin = Self::get_admin(env.clone())?;
+        admin.require_auth();
+
+        // Validate array lengths match
+        if recipients.len() != amounts.len() {
+            return Err(Error::MismatchedArrays);
+        }
+
+        let token_client = token::Client::new(&env, &token);
+        let contract_balance = token_client.balance(&env.current_contract_address());
+
+        let mut locked_map: Map<Address, i128> = env
+            .storage()
+            .instance()
+            .get(&KEY_TOTAL_LOCKED)
+            .unwrap_or(Map::new(&env));
+        let mut current_locked = locked_map.get(token.clone()).unwrap_or(0);
+
+        // Read the current package counter
+        let mut counter: u64 = env.storage().instance().get(&KEY_PKG_COUNTER).unwrap_or(0);
+
+        let created_at = env.ledger().timestamp();
+        let expires_at = created_at + expires_in;
+
+        let mut created_ids: Vec<u64> = Vec::new(&env);
+        let mut total_amount: i128 = 0;
+
+        for i in 0..recipients.len() {
+            let recipient = recipients.get(i).unwrap();
+            let amount = amounts.get(i).unwrap();
+
+            // Validate amount
+            if amount <= 0 {
+                return Err(Error::InvalidAmount);
+            }
+
+            // Check solvency
+            if contract_balance < current_locked + amount {
+                return Err(Error::InsufficientFunds);
+            }
+
+            // Assign ID and increment counter
+            let id = counter;
+            counter += 1;
+
+            let key = (symbol_short!("pkg"), id);
+
+            // Create package
+            let package = Package {
+                id,
+                recipient: recipient.clone(),
+                amount,
+                token: token.clone(),
+                status: PackageStatus::Created,
+                created_at,
+                expires_at,
+                metadata: Map::new(&env),
+            };
+
+            env.storage().persistent().set(&key, &package);
+
+            // Update locked
+            current_locked += amount;
+            total_amount += amount;
+
+            // Emit per-package event
+            PackageCreatedEvent {
+                id,
+                recipient,
+                amount,
+            }
+            .publish(&env);
+
+            created_ids.push_back(id);
+        }
+
+        // Persist updated locked map and counter
+        locked_map.set(token.clone(), current_locked);
+        env.storage().instance().set(&KEY_TOTAL_LOCKED, &locked_map);
+        env.storage().instance().set(&KEY_PKG_COUNTER, &counter);
+
+        // Emit batch event
+        BatchCreatedEvent {
+            ids: created_ids.clone(),
+            admin,
+            total_amount,
+        }
+        .publish(&env);
+
+        Ok(created_ids)
     }
 
     // --- Recipient Actions ---
