@@ -1,12 +1,12 @@
 #![cfg(test)]
 
 use soroban_sdk::{
-    Address, Env, Map, String, Symbol, Vec,
+    Address, Env, Vec,
     testutils::{Address as _, Ledger, LedgerInfo},
     token::{Client as TokenClient, StellarAssetClient},
 };
 
-use crate::{AidEscrow, AidEscrowClient, Config, Error, Package, PackageStatus};
+use aid_escrow::{AidEscrow, AidEscrowClient, Config, Error, Package, PackageStatus};
 
 // ---------------------------------------------------------------------------
 // Test helpers
