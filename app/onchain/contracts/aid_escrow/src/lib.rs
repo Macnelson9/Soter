@@ -10,6 +10,7 @@ const KEY_ADMIN: Symbol = symbol_short!("admin");
 const KEY_TOTAL_LOCKED: Symbol = symbol_short!("locked"); // Map<Address, i128>
 const KEY_PKG_COUNTER: Symbol = symbol_short!("pkg_cnt"); // Auto-incrementing package counter
 const KEY_CONFIG: Symbol = symbol_short!("config");
+const KEY_PKG_IDX: Symbol = symbol_short!("pkg_idx"); // Aggregation index counter
 
 // --- Data Types ---
 
@@ -43,6 +44,14 @@ pub struct Config {
     pub min_amount: i128,
     pub max_expires_in: u64,
     pub allowed_tokens: Vec<Address>,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct Aggregates {
+    pub total_committed: i128,
+    pub total_claimed: i128,
+    pub total_expired_cancelled: i128,
 }
 
 #[contracterror]
@@ -266,6 +275,12 @@ impl AidEscrow {
 
         env.storage().persistent().set(&key, &package);
 
+        // 5. Track package index for aggregation
+        let idx: u64 = env.storage().instance().get(&KEY_PKG_IDX).unwrap_or(0);
+        let idx_key = (symbol_short!("pidx"), idx);
+        env.storage().persistent().set(&idx_key, &id);
+        env.storage().instance().set(&KEY_PKG_IDX, &(idx + 1));
+
         // Emit Event
         PackageCreatedEvent {
             id,
@@ -306,6 +321,8 @@ impl AidEscrow {
 
         // Read the current package counter
         let mut counter: u64 = env.storage().instance().get(&KEY_PKG_COUNTER).unwrap_or(0);
+        // Read the current aggregation index
+        let mut idx: u64 = env.storage().instance().get(&KEY_PKG_IDX).unwrap_or(0);
 
         let created_at = env.ledger().timestamp();
         let expires_at = created_at + expires_in;
@@ -347,6 +364,11 @@ impl AidEscrow {
 
             env.storage().persistent().set(&key, &package);
 
+            // Track package index for aggregation
+            let idx_key = (symbol_short!("pidx"), idx);
+            env.storage().persistent().set(&idx_key, &id);
+            idx += 1;
+
             // Update locked
             current_locked += amount;
             total_amount += amount;
@@ -362,10 +384,11 @@ impl AidEscrow {
             created_ids.push_back(id);
         }
 
-        // Persist updated locked map and counter
+        // Persist updated locked map, counter, and aggregation index
         locked_map.set(token.clone(), current_locked);
         env.storage().instance().set(&KEY_TOTAL_LOCKED, &locked_map);
         env.storage().instance().set(&KEY_PKG_COUNTER, &counter);
+        env.storage().instance().set(&KEY_PKG_IDX, &idx);
 
         // Emit batch event
         BatchCreatedEvent {
@@ -688,5 +711,54 @@ impl AidEscrow {
             .persistent()
             .get(&key)
             .ok_or(Error::PackageNotFound)
+    }
+
+    // --- Analytics ---
+
+    /// Returns aggregate statistics for a given token.
+    ///
+    /// Iterates across all created packages and computes:
+    /// - `total_committed`: sum of amounts for packages still in `Created` status,
+    /// - `total_claimed`: sum of amounts for packages in `Claimed` status,
+    /// - `total_expired_cancelled`: sum of amounts for packages in `Expired`,
+    ///    `Cancelled`, or `Refunded` status.
+    ///
+    /// This is a read-only view intended for dashboards and analytics.
+    pub fn get_aggregates(env: Env, token: Address) -> Aggregates {
+        let count: u64 = env.storage().instance().get(&KEY_PKG_IDX).unwrap_or(0);
+
+        let mut total_committed: i128 = 0;
+        let mut total_claimed: i128 = 0;
+        let mut total_expired_cancelled: i128 = 0;
+
+        for i in 0..count {
+            let idx_key = (symbol_short!("pidx"), i);
+            if let Some(pkg_id) = env.storage().persistent().get::<_, u64>(&idx_key) {
+                let pkg_key = (symbol_short!("pkg"), pkg_id);
+                if let Some(package) = env.storage().persistent().get::<_, Package>(&pkg_key)
+                    && package.token == token
+                {
+                    match package.status {
+                        PackageStatus::Created => {
+                            total_committed += package.amount;
+                        }
+                        PackageStatus::Claimed => {
+                            total_claimed += package.amount;
+                        }
+                        PackageStatus::Expired
+                        | PackageStatus::Cancelled
+                        | PackageStatus::Refunded => {
+                            total_expired_cancelled += package.amount;
+                        }
+                    }
+                }
+            }
+        }
+
+        Aggregates {
+            total_committed,
+            total_claimed,
+            total_expired_cancelled,
+        }
     }
 }
